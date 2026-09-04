@@ -32,7 +32,7 @@ export default function App() {
   } = useSessions();
 
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Custom modal states for new session creation
   const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
   const [newSessionTitle, setNewSessionTitle] = useState('');
@@ -122,24 +122,24 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans justify-between">
-      <div>
+    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans justify-between animate-fade-in duration-500">
+      <div className="animate-slide-up duration-300">
         <UserNavBar user={activeUser} onSignOut={handleSignOut} />
-        
+
         {/* Header with integrated mobile new session action */}
-        <Header 
-          session={displaySession} 
-          onUpdateSession={handleUpdateSession} 
+        <Header
+          session={displaySession}
+          onUpdateSession={handleUpdateSession}
           onNewSession={() => setIsNewSessionModalOpen(true)}
         />
 
         <main className="max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
-          
+
           {/* Main Workspace Column */}
-          <div className="md:col-span-8 flex flex-col space-y-5 md:space-y-6 order-1 md:order-1">
+          <div className="md:col-span-8 flex flex-col space-y-5 md:space-y-6 order-1 md:order-1 transition-all">
             <StatsCards attendees={displaySession?.attendees || []} />
 
-            <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 transition-all duration-300 hover:shadow-md">
               <RegistrationForm onCheckIn={handleCheckIn} allSessions={sessions} />
             </div>
 
@@ -149,12 +149,14 @@ export default function App() {
                   <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                 </div>
                 <ExportButton
-                  attendees={displaySession?.attendees || []}
-                  sessionTitle={displaySession?.title || 'session'}
+                  attendees={activeSession?.attendees || []}
+                  sessionTitle={activeSession?.title}
+                  theme={activeSession?.theme}
+                  date={activeSession?.date}
                 />
               </div>
 
-              <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200">
+              <div className="overflow-x-auto bg-white rounded-2xl shadow-sm border border-slate-200 transition-all duration-300 hover:shadow-md">
                 <AttendanceTable
                   attendees={filteredAttendees}
                   onEditAttendee={handleEditAttendee}
@@ -182,19 +184,19 @@ export default function App() {
         </main>
       </div>
 
-      {/* Custom Styled Confirmation Modal for New Session */}
+      {/* Custom Styled Confirmation Modal with Smooth Entrance Animation */}
       {isNewSessionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 transform animate-scale-up duration-300">
             {/* Modal Header */}
             <div className="bg-[#1B3B2B] text-white px-6 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#B89748]"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-[#B89748] animate-pulse"></span>
                 <h3 className="font-bold text-lg">Create New Session</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setIsNewSessionModalOpen(false)}
-                className="text-slate-300 hover:text-white transition"
+                className="text-slate-300 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
               >
                 ✕
               </button>
@@ -212,7 +214,7 @@ export default function App() {
                   placeholder="e.g. Session 1"
                   value={newSessionTitle}
                   onChange={(e) => setNewSessionTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm transition-all"
                 />
               </div>
 
@@ -225,7 +227,7 @@ export default function App() {
                   placeholder="e.g Whole and Ready"
                   value={newSessionTheme}
                   onChange={(e) => setNewSessionTheme(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm transition-all"
                 />
               </div>
 
@@ -234,13 +236,13 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsNewSessionModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg text-sm font-bold bg-[#1B3B2B] hover:bg-[#12281d] text-white shadow transition"
+                  className="px-5 py-2 rounded-xl text-sm font-bold bg-[#1B3B2B] hover:bg-[#12281d] text-white shadow transition-all active:scale-95"
                 >
                   Create Session
                 </button>
@@ -250,8 +252,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Footer pinned cleanly at bottom */}
       <Footer />
     </div>
   );
-} 
+}

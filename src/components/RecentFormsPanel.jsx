@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, AlertOctagon, X, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Edit2, AlertOctagon, X, Check, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import DeleteConfirmationModal from './DeleteConfirmationModal';
 
 export default function RecentFormsPanel({
@@ -14,6 +14,8 @@ export default function RecentFormsPanel({
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   // Modal State
   const [deleteModal, setDeleteModal] = useState({
@@ -41,19 +43,26 @@ export default function RecentFormsPanel({
     });
     setEditingSessionId(null);
     setShowCreateModal(false);
+    setIsSubmitting(false);
   };
 
-  const handleCreateOrUpdate = (e) => {
+  const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     if (!formData.title) return;
 
-    if (editingSessionId) {
-      onUpdateSession({ ...formData, id: editingSessionId });
-    } else {
-      onCreateSession(formData);
+    try {
+      setIsSubmitting(true);
+      if (editingSessionId) {
+        await onUpdateSession({ ...formData, id: editingSessionId });
+      } else {
+        await onCreateSession(formData);
+      }
+      resetForm();
+    } catch (err) {
+      console.error("Failed to save session to database:", err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    resetForm();
   };
 
   const startEdit = (session) => {
@@ -88,12 +97,21 @@ export default function RecentFormsPanel({
     });
   };
 
-  // Confirm execution handler
-  const handleConfirmDelete = () => {
-    if (deleteModal.type === 'single' && deleteModal.targetId) {
-      onDeleteSession(deleteModal.targetId);
-    } else if (deleteModal.type === 'all') {
-      onClearAll();
+  // Confirm execution handler integrated with database actions
+  const handleConfirmDelete = async () => {
+    try {
+      if (deleteModal.type === 'single' && deleteModal.targetId) {
+        setActionLoadingId(deleteModal.targetId);
+        await onDeleteSession(deleteModal.targetId);
+      } else if (deleteModal.type === 'all') {
+        setActionLoadingId('all');
+        await onClearAll();
+      }
+    } catch (err) {
+      console.error("Failed to delete session(s) from database:", err);
+    } finally {
+      setActionLoadingId(null);
+      setDeleteModal({ isOpen: false, type: null, targetId: null, targetTitle: '' });
     }
   };
 
@@ -122,7 +140,7 @@ export default function RecentFormsPanel({
         </div>
 
         {showCreateModal && (
-          <form onSubmit={handleCreateOrUpdate} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+          <form onSubmit={handleCreateOrUpdate} className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2 animate-fadeIn">
             <p className="font-bold text-xs text-[#1B3B2B]">
               {editingSessionId ? 'Edit Program Session' : 'Create Program Session'}
             </p>
@@ -170,14 +188,20 @@ export default function RecentFormsPanel({
             <div className="flex gap-2 pt-1">
               <button
                 type="submit"
-                className="flex-1 bg-[#1B3B2B] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#142d21] transition flex items-center justify-center gap-1"
+                disabled={isSubmitting}
+                className="flex-1 bg-[#1B3B2B] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#142d21] transition flex items-center justify-center gap-1 disabled:opacity-50"
               >
-                <Check size={14} />
+                {isSubmitting ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
                 <span>{editingSessionId ? 'Update Session' : 'Save Session'}</span>
               </button>
               <button
                 type="button"
                 onClick={resetForm}
+                disabled={isSubmitting}
                 className="px-3 bg-slate-200 text-slate-700 text-xs font-semibold py-1.5 rounded-lg hover:bg-slate-300 transition"
               >
                 Cancel
@@ -207,6 +231,7 @@ export default function RecentFormsPanel({
 
                   <div className="flex items-center gap-1">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         startEdit(session);
@@ -217,14 +242,20 @@ export default function RecentFormsPanel({
                       <Edit2 size={14} />
                     </button>
                     <button
+                      type="button"
+                      disabled={actionLoadingId === session.id}
                       onClick={(e) => {
                         e.stopPropagation();
                         triggerDeleteSession(session);
                       }}
-                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                      className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition disabled:opacity-50"
                       title="Delete Session"
                     >
-                      <Trash2 size={14} />
+                      {actionLoadingId === session.id ? (
+                        <Loader2 size={14} className="animate-spin text-red-600" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -232,6 +263,7 @@ export default function RecentFormsPanel({
 
               {sessions.length > 4 && (
                 <button
+                  type="button"
                   onClick={() => setShowAllSessions(!showAllSessions)}
                   className="w-full py-1.5 text-xs font-semibold text-[#1B3B2B] bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center gap-1 transition"
                 >
@@ -256,10 +288,17 @@ export default function RecentFormsPanel({
 
         <div className="pt-2 border-t border-slate-100">
           <button
+            type="button"
+            disabled={actionLoadingId === 'all' || sessions.length === 0}
             onClick={triggerClearAll}
-            className="w-full flex items-center justify-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-semibold py-2 rounded-lg transition"
+            className="w-full flex items-center justify-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-semibold py-2 rounded-lg transition disabled:opacity-50"
           >
-            <AlertOctagon size={14} /> Clear All Sessions Data
+            {actionLoadingId === 'all' ? (
+              <Loader2 size={14} className="animate-spin text-red-600" />
+            ) : (
+              <AlertOctagon size={14} />
+            )}
+            <span>Clear All Sessions Data</span>
           </button>
         </div>
       </div>
@@ -272,8 +311,8 @@ export default function RecentFormsPanel({
         title={deleteModal.type === 'all' ? "Clear All Sessions" : "Delete Session"}
         message={
           deleteModal.type === 'all'
-            ? "Are you sure you want to delete ALL sessions and reset your attendance logs? This action cannot be undone."
-            : `Are you sure you want to delete "${deleteModal.targetTitle}"? All attendees logged under this session will be permanently removed.`
+            ? "Are you sure you want to delete ALL sessions and reset your attendance logs from the database? This action cannot be undone."
+            : `Are you sure you want to delete "${deleteModal.targetTitle}"? All attendees logged under this session will be permanently removed from the database.`
         }
         confirmLabel={deleteModal.type === 'all' ? "Clear All" : "Delete Session"}
       />

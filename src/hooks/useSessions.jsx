@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
-import { loadSessionsData, saveSessionsData } from '../services/storage';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  getDocs, 
+  query, 
+  where 
+} from 'firebase/firestore';
+import { auth, db } from '../services/firebase';
 
 const DEFAULT_SESSION = {
   id: 'session-1',
@@ -19,18 +27,32 @@ export function useSessions() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState('');
 
+  // Fetch sessions from Firestore for the logged-in user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        const fetched = await loadSessionsData();
-        if (fetched && fetched.length > 0) {
-          setSessions(fetched);
-          setActiveSessionId(fetched[0].id);
-        } else {
-          setSessions([DEFAULT_SESSION]);
-          setActiveSessionId(DEFAULT_SESSION.id);
-          await saveSessionsData([DEFAULT_SESSION]);
+        try {
+          const q = query(collection(db, 'sessions'), where('userId', '==', currentUser.uid));
+          const querySnapshot = await getDocs(q);
+          
+          const fetchedSessions = [];
+          querySnapshot.forEach((docSnap) => {
+            fetchedSessions.push({ id: docSnap.id, ...docSnap.data() });
+          });
+
+          if (fetchedSessions.length > 0) {
+            setSessions(fetchedSessions);
+            setActiveSessionId(fetchedSessions[0].id);
+          } else {
+            // Save default session to Firestore if none exist
+            const defaultWithUser = { ...DEFAULT_SESSION, userId: currentUser.uid };
+            await setDoc(doc(db, 'sessions', DEFAULT_SESSION.id), defaultWithUser);
+            setSessions([defaultWithUser]);
+            setActiveSessionId(DEFAULT_SESSION.id);
+          }
+        } catch (err) {
+          console.error("Error loading sessions from Firestore:", err);
         }
       } else {
         setSessions([]);
@@ -44,9 +66,11 @@ export function useSessions() {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
 
-  const updateAndSaveSessions = async (newSessions) => {
-    setSessions(newSessions);
-    await saveSessionsData(newSessions);
+  // Helper to save a single session document in Firestore
+  const saveSessionToDb = async (sessionObj) => {
+    if (!user) return;
+    const docRef = doc(db, 'sessions', sessionObj.id);
+    await setDoc(docRef, { ...sessionObj, userId: user.uid }, { merge: true });
   };
 
   const handleCheckIn = async (formData) => {
@@ -58,50 +82,68 @@ export function useSessions() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    const updated = sessions.map((s) =>
-      s.id === activeSessionId
-        ? { ...s, attendees: [newAttendee, ...(s.attendees || [])] }
-        : s
-    );
-    await updateAndSaveSessions(updated);
-  };
-
-  const handleEditAttendee = async (updatedAttendee) => {
-    const updated = sessions.map((s) =>
-      s.id === activeSessionId
-        ? {
-            ...s,
-            attendees: (s.attendees || []).map((a) =>
-              a.id === updatedAttendee.id ? updatedAttendee : a
-            )
-          }
-        : s
-    );
-    await updateAndSaveSessions(updated);
-  };
-
-  const handleDeleteAttendee = async (attendeeId) => {
-    const updated = sessions.map((s) =>
-      s.id === activeSessionId
-        ? { ...s, attendees: (s.attendees || []).filter((a) => a.id !== attendeeId) }
-        : s
-    );
-    await updateAndSaveSessions(updated);
-  };
-
-  const handleUpdateSession = async (updatedSession) => {
+    let targetSession = null;
     const updated = sessions.map((s) => {
-      if (s.id === updatedSession.id) {
-        return {
-          ...s,
-          ...updatedSession,
-          // Preserve existing attendees if updatedSession doesn't explicitly pass them
-          attendees: updatedSession.attendees ?? s.attendees ?? []
-        };
+      if (s.id === activeSessionId) {
+        targetSession = { ...s, attendees: [newAttendee, ...(s.attendees || [])] };
+        return targetSession;
       }
       return s;
     });
-    await updateAndSaveSessions(updated);
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
+  };
+
+  const handleEditAttendee = async (updatedAttendee) => {
+    let targetSession = null;
+    const updated = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        targetSession = {
+          ...s,
+          attendees: (s.attendees || []).map((a) =>
+            a.id === updatedAttendee.id ? updatedAttendee : a
+          )
+        };
+        return targetSession;
+      }
+      return s;
+    });
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
+  };
+
+  const handleDeleteAttendee = async (attendeeId) => {
+    let targetSession = null;
+    const updated = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        targetSession = { ...s, attendees: (s.attendees || []).filter((a) => a.id !== attendeeId) };
+        return targetSession;
+      }
+      return s;
+    });
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
+  };
+
+  const handleUpdateSession = async (updatedSession) => {
+    let targetSession = null;
+    const updated = sessions.map((s) => {
+      if (s.id === updatedSession.id) {
+        targetSession = {
+          ...s,
+          ...updatedSession,
+          attendees: updatedSession.attendees ?? s.attendees ?? []
+        };
+        return targetSession;
+      }
+      return s;
+    });
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
   };
 
   const handleCreateSession = async (sessionData) => {
@@ -118,31 +160,55 @@ export function useSessions() {
     };
 
     const updated = [newSession, ...sessions];
+    setSessions(updated);
     setActiveSessionId(newSession.id);
-    await updateAndSaveSessions(updated);
+    await saveSessionToDb(newSession);
   };
 
   const handleDeleteSession = async (sessionIdToDelete) => {
-    const updated = sessions.filter((s) => s.id !== sessionIdToDelete);
-    if (updated.length > 0) {
-      setSessions(updated);
-      if (activeSessionId === sessionIdToDelete) {
-        setActiveSessionId(updated[0].id);
+    try {
+      // 1. Permanently delete document from Firestore database
+      await deleteDoc(doc(db, 'sessions', sessionIdToDelete));
+
+      const updated = sessions.filter((s) => s.id !== sessionIdToDelete);
+      if (updated.length > 0) {
+        setSessions(updated);
+        if (activeSessionId === sessionIdToDelete) {
+          setActiveSessionId(updated[0].id);
+        }
+      } else {
+        // Fallback to default session if all deleted
+        const defaultWithUser = { ...DEFAULT_SESSION, userId: user.uid };
+        await setDoc(doc(db, 'sessions', DEFAULT_SESSION.id), defaultWithUser);
+        setSessions([defaultWithUser]);
+        setActiveSessionId(DEFAULT_SESSION.id);
       }
-      await saveSessionsData(updated);
-    } else {
-      setSessions([DEFAULT_SESSION]);
-      setActiveSessionId(DEFAULT_SESSION.id);
-      await saveSessionsData([DEFAULT_SESSION]);
+    } catch (err) {
+      console.error("Error deleting session from database:", err);
     }
   };
 
   const handleClearAllSessions = async () => {
-    if (window.confirm('Are you sure you want to clear all your sessions and reset your attendance log?')) {
-      const reset = [DEFAULT_SESSION];
-      setSessions(reset);
+    try {
+      if (!user) return;
+
+      // Fetch all user session documents from Firestore
+      const q = query(collection(db, 'sessions'), where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+
+      // Delete all documents in parallel
+      const deletePromises = querySnapshot.docs.map((docSnap) =>
+        deleteDoc(doc(db, 'sessions', docSnap.id))
+      );
+      await Promise.all(deletePromises);
+
+      // Reset to default session
+      const defaultWithUser = { ...DEFAULT_SESSION, userId: user.uid };
+      await setDoc(doc(db, 'sessions', DEFAULT_SESSION.id), defaultWithUser);
+      setSessions([defaultWithUser]);
       setActiveSessionId(DEFAULT_SESSION.id);
-      await saveSessionsData(reset);
+    } catch (err) {
+      console.error("Error clearing sessions from database:", err);
     }
   };
 
