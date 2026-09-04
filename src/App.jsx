@@ -12,6 +12,10 @@ import AuthModal from './components/AuthModal';
 import UserNavBar from './components/UserNavBar';
 import LoadingScreen from './components/LoadingScreen';
 import Footer from './components/Footer';
+import QRCodeModal from './components/QRCodeModal';
+import CreateSessionModal from './components/CreateSessionModal';
+import PublicBookingRoute from './components/PublicBookingRoute';
+import { QrCode } from 'lucide-react';
 
 export default function App() {
   const {
@@ -32,19 +36,46 @@ export default function App() {
   } = useSessions();
 
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Custom modal states for new session creation
   const [isNewSessionModalOpen, setIsNewSessionModalOpen] = useState(false);
-  const [newSessionTitle, setNewSessionTitle] = useState('');
-  const [newSessionTheme, setNewSessionTheme] = useState('');
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+  // If public booking URL is hit, render the public route component
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('booking') === 'true' && urlParams.get('session')) {
+    return <PublicBookingRoute />;
+  }
 
   if (loading) return <LoadingScreen />;
-  const activeUser = user;
-  if (!activeUser) return <AuthModal />;
+  if (!user) return <AuthModal />;
 
   const query = searchQuery.toLowerCase().trim();
 
-  // 1. Find if any session contains an attendee or title matching the search query
+  const currentActiveSession = sessions.find((s) => s.id === activeSessionId) || activeSession;
+
+  // Robust toggle handler supporting ID or array index mapping
+  const handleToggleAttendance = async (attendeeIdOrIndex, currentStatus) => {
+    if (!currentActiveSession || !currentActiveSession.attendees) return;
+
+    // Find target attendee by ID or fallback to index matching
+    const targetAttendee = currentActiveSession.attendees.find(
+      (att, idx) => att.id === attendeeIdOrIndex || idx.toString() === attendeeIdOrIndex.toString()
+    );
+
+    if (!targetAttendee) {
+      console.warn("Could not find target attendee for toggle.");
+      return;
+    }
+
+    const updatedAttendee = {
+      ...targetAttendee,
+      attended: !currentStatus
+    };
+
+    if (typeof handleEditAttendee === 'function') {
+      await handleEditAttendee(updatedAttendee); // Fixed signature to match useSessions hook
+    }
+  };
+
   const matchingSessionByAttendee = sessions.find((session) =>
     (session.attendees || []).some(
       (att) =>
@@ -54,9 +85,6 @@ export default function App() {
     )
   );
 
-  const currentActiveSession = sessions.find((s) => s.id === activeSessionId) || activeSession;
-
-  // 2. Check if the currently active session has the search match
   const activeSessionHasMatch =
     query === '' ||
     (currentActiveSession?.title || '').toLowerCase().includes(query) ||
@@ -69,11 +97,9 @@ export default function App() {
         (att.location || '').toLowerCase().includes(query)
     );
 
-  // 3. Determine the display session: if active doesn't match but another session has the attendee, switch to it
   const displaySession =
     !activeSessionHasMatch && matchingSessionByAttendee ? matchingSessionByAttendee : currentActiveSession;
 
-  // 4. Filter attendees for the display session
   const filteredAttendees = (displaySession?.attendees || []).filter((att) => {
     if (!query) return true;
     const matchesName = (att.name || '').toLowerCase().includes(query);
@@ -86,7 +112,6 @@ export default function App() {
     return matchesName || matchesPhone || matchesLocation || matchesSessionTitle || matchesTheme || matchesDate;
   });
 
-  // Filter sessions for the sidebar panel
   const filteredSessions = sessions.filter((session) => {
     if (!query) return true;
     const matchesSessionTitle = (session.title || '').toLowerCase().includes(query);
@@ -103,30 +128,11 @@ export default function App() {
     return matchesSessionTitle || matchesTheme || matchesDate || matchesAttendee;
   });
 
-  // Handler to submit the custom session form
-  const handleCreateSessionSubmit = (e) => {
-    e.preventDefault();
-    if (!newSessionTitle.trim()) return;
-
-    const date = new Date().toISOString().split('T')[0];
-    handleCreateSession({
-      title: newSessionTitle.trim(),
-      theme: newSessionTheme.trim(),
-      date
-    });
-
-    // Reset and close modal
-    setNewSessionTitle('');
-    setNewSessionTheme('');
-    setIsNewSessionModalOpen(false);
-  };
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans justify-between animate-fade-in duration-500">
       <div className="animate-slide-up duration-300">
-        <UserNavBar user={activeUser} onSignOut={handleSignOut} />
+        <UserNavBar user={user} onSignOut={handleSignOut} />
 
-        {/* Header with integrated mobile new session action */}
         <Header
           session={displaySession}
           onUpdateSession={handleUpdateSession}
@@ -134,8 +140,6 @@ export default function App() {
         />
 
         <main className="max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
-
-          {/* Main Workspace Column */}
           <div className="md:col-span-8 flex flex-col space-y-5 md:space-y-6 order-1 md:order-1 transition-all">
             <StatsCards attendees={displaySession?.attendees || []} />
 
@@ -148,25 +152,34 @@ export default function App() {
                 <div className="w-full sm:w-auto flex-1">
                   <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                 </div>
-                <ExportButton
-                  attendees={activeSession?.attendees || []}
-                  sessionTitle={activeSession?.title}
-                  theme={activeSession?.theme}
-                  date={activeSession?.date}
-                />
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsQrModalOpen(true)}
+                    className="flex items-center gap-1.5 bg-[#1B3B2B] hover:bg-[#142d21] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
+                  >
+                    <QrCode size={14} /> QR Code
+                  </button>
+
+                  <ExportButton
+                    attendees={displaySession?.attendees || []}
+                    sessionTitle={displaySession?.title}
+                    theme={displaySession?.theme}
+                    date={displaySession?.date}
+                  />
+                </div>
               </div>
 
               <div className="overflow-x-auto bg-white rounded-2xl shadow-sm border border-slate-200 transition-all duration-300 hover:shadow-md">
                 <AttendanceTable
                   attendees={filteredAttendees}
-                  onEditAttendee={handleEditAttendee}
-                  onDeleteAttendee={handleDeleteAttendee}
+                  onToggleAttendance={handleToggleAttendance}
                 />
               </div>
             </div>
           </div>
 
-          {/* Sidebar Column */}
           <aside className="md:col-span-4 flex flex-col space-y-5 md:space-y-6 order-2 md:order-2">
             <RecentFormsPanel
               sessions={filteredSessions}
@@ -180,77 +193,20 @@ export default function App() {
 
             <FrequentAttendees sessions={sessions} />
           </aside>
-
         </main>
       </div>
 
-      {/* Custom Styled Confirmation Modal with Smooth Entrance Animation */}
-      {isNewSessionModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 transform animate-scale-up duration-300">
-            {/* Modal Header */}
-            <div className="bg-[#1B3B2B] text-white px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#B89748] animate-pulse"></span>
-                <h3 className="font-bold text-lg">Create New Session</h3>
-              </div>
-              <button
-                onClick={() => setIsNewSessionModalOpen(false)}
-                className="text-slate-300 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
-              >
-                ✕
-              </button>
-            </div>
+      <QRCodeModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        session={displaySession}
+      />
 
-            {/* Modal Body / Form */}
-            <form onSubmit={handleCreateSessionSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Session Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Session 1"
-                  value={newSessionTitle}
-                  onChange={(e) => setNewSessionTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-                  Session Theme (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g Whole and Ready"
-                  value={newSessionTheme}
-                  onChange={(e) => setNewSessionTheme(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B] text-slate-800 text-sm transition-all"
-                />
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsNewSessionModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl text-sm font-bold bg-[#1B3B2B] hover:bg-[#12281d] text-white shadow transition-all active:scale-95"
-                >
-                  Create Session
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateSessionModal
+        isOpen={isNewSessionModalOpen}
+        onClose={() => setIsNewSessionModalOpen(false)}
+        onCreateSession={handleCreateSession}
+      />
 
       <Footer />
     </div>

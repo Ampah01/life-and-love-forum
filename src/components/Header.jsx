@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Edit3, Check, X, Plus } from 'lucide-react';
+import { Calendar, MapPin, Edit3, Check, X, Plus, Clock } from 'lucide-react';
 
 export default function Header({ session, onUpdateSession, onNewSession }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -8,7 +8,8 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
     theme: '',
     date: '',
     time: '',
-    venue: ''
+    venue: '',
+    bookingDeadline: ''
   });
 
   useEffect(() => {
@@ -18,7 +19,8 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
         theme: session.theme || '',
         date: session.date || '',
         time: session.time || '',
-        venue: session.venue || ''
+        venue: session.venue || '',
+        bookingDeadline: session.bookingDeadline || ''
       });
     }
   }, [session]);
@@ -30,7 +32,8 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
       theme: editFields.theme,
       date: editFields.date,
       time: editFields.time,
-      venue: editFields.venue
+      venue: editFields.venue,
+      bookingDeadline: editFields.bookingDeadline || null
     });
     setIsEditing(false);
   };
@@ -89,6 +92,14 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
                   placeholder="Theme"
                 />
 
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">Booking Deadline</label>
+                <input
+                  type="datetime-local"
+                  value={editFields.bookingDeadline}
+                  onChange={(e) => setEditFields({ ...editFields, bookingDeadline: e.target.value })}
+                  className="w-full border border-slate-300 rounded p-1.5 text-xs"
+                />
+
                 <button
                   onClick={handleSave}
                   className="bg-[#1B3B2B] text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-semibold mt-2 hover:bg-[#142d21] transition"
@@ -107,6 +118,11 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
                 <p className="text-xs text-slate-600 italic">
                   Real conversations on life, love & lasting family.
                 </p>
+                {session?.bookingDeadline && (
+                  <p className="text-[11px] text-amber-700 mt-2 flex items-center gap-1 font-medium">
+                    <Clock size={12} /> Deadline: {new Date(session.bookingDeadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                )}
               </div>
             )}
           </div>

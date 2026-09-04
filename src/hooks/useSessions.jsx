@@ -74,25 +74,46 @@ export function useSessions() {
   };
 
   const handleCheckIn = async (formData) => {
-    const newAttendee = {
-      id: Date.now().toString(),
-      name: formData.name,
-      phone: formData.phone,
-      location: formData.location || 'Asonkore',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
     let targetSession = null;
+    let duplicateFound = false;
+
     const updated = sessions.map((s) => {
       if (s.id === activeSessionId) {
+        // Prevent duplicate names within the same session (phone numbers can repeat)
+        const existingAttendee = (s.attendees || []).find(
+          (a) => a.name && formData.name && a.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
+        );
+
+        if (existingAttendee) {
+          duplicateFound = true;
+          return s; 
+        }
+
+        const newAttendee = {
+          id: Date.now().toString(),
+          name: formData.name,
+          phone: formData.phone,
+          location: formData.location || 'Asonkore',
+          attended: false, // Starts as absent/no-show until confirmed
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
         targetSession = { ...s, attendees: [newAttendee, ...(s.attendees || [])] };
         return targetSession;
       }
       return s;
     });
 
+    if (duplicateFound) {
+      return { 
+        success: false, 
+        message: 'An attendee with this name is already registered in this session!' 
+      };
+    }
+
     setSessions(updated);
     if (targetSession) await saveSessionToDb(targetSession);
+    return { success: true };
   };
 
   const handleEditAttendee = async (updatedAttendee) => {
@@ -167,7 +188,6 @@ export function useSessions() {
 
   const handleDeleteSession = async (sessionIdToDelete) => {
     try {
-      // 1. Permanently delete document from Firestore database
       await deleteDoc(doc(db, 'sessions', sessionIdToDelete));
 
       const updated = sessions.filter((s) => s.id !== sessionIdToDelete);
@@ -177,7 +197,6 @@ export function useSessions() {
           setActiveSessionId(updated[0].id);
         }
       } else {
-        // Fallback to default session if all deleted
         const defaultWithUser = { ...DEFAULT_SESSION, userId: user.uid };
         await setDoc(doc(db, 'sessions', DEFAULT_SESSION.id), defaultWithUser);
         setSessions([defaultWithUser]);
@@ -192,17 +211,14 @@ export function useSessions() {
     try {
       if (!user) return;
 
-      // Fetch all user session documents from Firestore
       const q = query(collection(db, 'sessions'), where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
 
-      // Delete all documents in parallel
       const deletePromises = querySnapshot.docs.map((docSnap) =>
         deleteDoc(doc(db, 'sessions', docSnap.id))
       );
       await Promise.all(deletePromises);
 
-      // Reset to default session
       const defaultWithUser = { ...DEFAULT_SESSION, userId: user.uid };
       await setDoc(doc(db, 'sessions', DEFAULT_SESSION.id), defaultWithUser);
       setSessions([defaultWithUser]);
