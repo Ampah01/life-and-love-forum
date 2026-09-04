@@ -51,7 +51,7 @@ export default function StatsCards({ attendees = [] }) {
           <Clock size={20} />
         </div>
         <div>
-          <p className="text-xs text-slate-500 font-semibold uppercase">First Check-In</p>
+          <p className="text-xs text-slate-500 font-semibold uppercase">Last Check-In</p>
           <p className="text-xs font-bold text-slate-800">
             {firstAttendee?.timestamp || 'None'}
           </p>

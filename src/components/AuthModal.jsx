@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword 
 } from 'firebase/auth';
 import { auth } from '../services/firebase'; 
-import { Lock, Mail, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
+import { Lock, Mail, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Loader2, Heart, CalendarCheck } from 'lucide-react';
 
 export default function AuthModal() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -32,13 +32,13 @@ export default function AuthModal() {
         case 'auth/invalid-credential':
         case 'auth/wrong-password':
         case 'auth/user-not-found':
-          setError('Invalid email or password.');
+          setError('Oops! That email or password doesn\'t look quite right.');
           break;
         case 'auth/email-already-in-use':
-          setError('An account with this email already exists.');
+          setError('An account with this email already exists. Try signing in!');
           break;
         case 'auth/weak-password':
-          setError('Password should be at least 6 characters long.');
+          setError('Please choose a password with at least 6 characters.');
           break;
         case 'auth/operation-not-allowed':
           setError('Email/Password sign-in is not enabled in Firebase Console.');
@@ -57,44 +57,40 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans relative overflow-hidden">
-      {/* Ambient Background Glows */}
-      <div className="absolute top-1/4 -left-20 w-72 h-72 sm:w-96 sm:h-96 bg-[#1B3B2B]/40 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-1/4 -right-20 w-72 h-72 sm:w-96 sm:h-96 bg-[#B89748]/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div className="min-h-screen bg-[#F7F5EC] flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans relative overflow-hidden">
+      {/* Soft Decorative Background Blobs */}
+      <div className="absolute top-10 -left-16 w-80 h-80 bg-[#1B3B2B]/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+      <div className="absolute bottom-10 -right-16 w-80 h-80 bg-[#B89748]/15 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
 
       {/* Main Card Container */}
-      <div className="bg-white/95 backdrop-blur-md w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-[#1B3B2B]/20 relative z-10 transition-all">
+      <div className="bg-white/90 backdrop-blur-xl w-full max-w-md rounded-3xl shadow-xl overflow-hidden border border-[#1B3B2B]/10 relative z-10 transition-all duration-300">
         
         {/* Header Section */}
-        <div className="bg-[#1B3B2B] text-white p-6 sm:p-8 text-center border-b-4 border-[#B89748] relative">
-          <div className="inline-flex items-center justify-center gap-1.5 bg-[#B89748]/20 text-[#B89748] text-[10px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full mb-3 border border-[#B89748]/30">
-            <Sparkles size={12} />
-            <span>Official Portal</span>
+        <div className="bg-gradient-to-br from-[#1B3B2B] to-[#254d38] text-white p-8 text-center relative">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+          
+          <div className="inline-flex items-center justify-center gap-2 bg-[#B89748]/25 text-amber-200 text-xs font-medium tracking-wide px-4 py-1.5 rounded-full mb-4 border border-[#B89748]/30 shadow-inner">
+            <Heart size={13} className="text-[#B89748] fill-[#B89748]" />
+            <span>Life & Love Forum</span>
           </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold uppercase tracking-wider text-white">
-            Life & Love Forum
+
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            {isSignUp ? 'Join Our Community' : 'Welcome Back!'}
           </h1>
-          <p className="text-xs sm:text-sm text-amber-200/90 mt-1 italic font-light">
-            Attendance & Session Management
-          </p>
+          
+          {/* Included Attendance Session Focus */}
+          <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs text-amber-100/90 bg-white/10 px-3 py-1 rounded-lg backdrop-blur-xs">
+            <CalendarCheck size={14} className="text-[#B89748]" />
+            <span className="font-medium">Attendance Session Portal</span>
+          </div>
         </div>
 
         {/* Form Body Section */}
         <div className="p-6 sm:p-8 space-y-6">
-          <div className="text-center space-y-1">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-              {isSignUp ? 'Create an Account' : 'Welcome Back'}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
-              {isSignUp 
-                ? 'Sign up to create and manage your session logs' 
-                : 'Sign in to access your program sessions'}
-            </p>
-          </div>
 
           {/* Error Alert */}
           {error && (
-            <div className="bg-red-50/90 border border-red-200 text-red-700 text-xs sm:text-sm p-3.5 rounded-xl flex items-start gap-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="bg-red-50 border border-red-100 text-red-600 text-xs sm:text-sm p-4 rounded-2xl flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
               <AlertCircle size={18} className="shrink-0 text-red-500 mt-0.5" />
               <span className="leading-snug">{error}</span>
             </div>
@@ -105,30 +101,30 @@ export default function AuthModal() {
             
             {/* Email Field */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">
                 Email Address
               </label>
               <div className="relative flex items-center group">
-                <Mail className="absolute left-3.5 text-slate-400 group-focus-within:text-[#1B3B2B] transition-colors" size={18} />
+                <Mail className="absolute left-4 text-slate-400 group-focus-within:text-[#1B3B2B] transition-colors" size={18} />
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
+                  placeholder="name@example.com"
                   autoComplete={isSignUp ? 'email' : 'email'}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-[#1B3B2B]/20 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1B3B2B] focus:ring-4 focus:ring-[#1B3B2B]/10 focus:outline-none transition-all shadow-sm"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1B3B2B] focus:ring-4 focus:ring-[#1B3B2B]/10 focus:outline-none transition-all shadow-2xs"
                 />
               </div>
             </div>
 
             {/* Password Field */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider ml-1">
                 Password
               </label>
               <div className="relative flex items-center group">
-                <Lock className="absolute left-3.5 text-slate-400 group-focus-within:text-[#1B3B2B] transition-colors" size={18} />
+                <Lock className="absolute left-4 text-slate-400 group-focus-within:text-[#1B3B2B] transition-colors" size={18} />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
@@ -137,12 +133,12 @@ export default function AuthModal() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                  className="w-full pl-10 pr-11 py-2.5 bg-slate-50/50 border border-[#1B3B2B]/20 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1B3B2B] focus:ring-4 focus:ring-[#1B3B2B]/10 focus:outline-none transition-all shadow-sm"
+                  className="w-full pl-11 pr-12 py-3 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#1B3B2B] focus:ring-4 focus:ring-[#1B3B2B]/10 focus:outline-none transition-all shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 text-slate-400 hover:text-slate-600 focus:outline-none p-1 rounded-md transition-colors"
+                  className="absolute right-4 text-slate-400 hover:text-slate-600 focus:outline-none p-1 rounded-lg transition-colors"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -154,12 +150,12 @@ export default function AuthModal() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#1B3B2B] hover:bg-[#142d21] active:scale-[0.99] text-white text-xs sm:text-sm font-bold py-3 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-[#1B3B2B] hover:bg-[#142d21] active:scale-[0.98] text-white text-xs sm:text-sm font-bold py-3.5 rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed mt-3"
             >
               {loading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Processing...</span>
+                  <span>Just a moment...</span>
                 </>
               ) : isSignUp ? (
                 <>
@@ -176,21 +172,22 @@ export default function AuthModal() {
           </form>
 
           {/* Footer Section & Switch Mode Button */}
-          <div className="pt-4 border-t border-[#B89748]/20 text-center">
+          <div className="pt-4 border-t border-slate-100 text-center">
             <p className="text-xs sm:text-sm text-slate-500">
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+              {isSignUp ? 'Already part of the family?' : "New here?"}{' '}
               <button
                 type="button"
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setError('');
                 }}
-                className="font-bold text-[#1B3B2B] hover:text-[#142d21] hover:underline focus:outline-none transition-colors ml-1"
+                className="font-bold text-[#1B3B2B] hover:text-[#B89748] focus:outline-none transition-colors ml-1 underline underline-offset-4 decoration-2"
               >
-                {isSignUp ? 'Sign In' : 'Sign Up'}
+                {isSignUp ? 'Sign In' : 'Create an Account'}
               </button>
             </p>
           </div>
+
         </div>
       </div>
     </div>
