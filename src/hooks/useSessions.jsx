@@ -21,6 +21,11 @@ const DEFAULT_SESSION = {
   attendees: []
 };
 
+// Helper to sort sessions by date descending (most recent first)
+const sortSessionsByDate = (sessionList) => {
+  return [...sessionList].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+};
+
 export function useSessions() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,14 +41,15 @@ export function useSessions() {
           const q = query(collection(db, 'sessions'), where('userId', '==', currentUser.uid));
           const querySnapshot = await getDocs(q);
           
-          const fetchedSessions = [];
+          let fetchedSessions = [];
           querySnapshot.forEach((docSnap) => {
             fetchedSessions.push({ id: docSnap.id, ...docSnap.data() });
           });
 
           if (fetchedSessions.length > 0) {
-            setSessions(fetchedSessions);
-            setActiveSessionId(fetchedSessions[0].id);
+            const sorted = sortSessionsByDate(fetchedSessions);
+            setSessions(sorted);
+            setActiveSessionId(sorted[0].id); // Automatically select the most recent session by date
           } else {
             // Save default session to Firestore if none exist
             const defaultWithUser = { ...DEFAULT_SESSION, userId: currentUser.uid };
@@ -79,7 +85,6 @@ export function useSessions() {
 
     const updated = sessions.map((s) => {
       if (s.id === activeSessionId) {
-        // Prevent duplicate names within the same session (phone numbers can repeat)
         const existingAttendee = (s.attendees || []).find(
           (a) => a.name && formData.name && a.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
         );
@@ -94,7 +99,7 @@ export function useSessions() {
           name: formData.name,
           phone: formData.phone,
           location: formData.location || 'Asonkore',
-          attended: false, // Starts as absent/no-show until confirmed
+          attended: false,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -151,7 +156,7 @@ export function useSessions() {
 
   const handleUpdateSession = async (updatedSession) => {
     let targetSession = null;
-    const updated = sessions.map((s) => {
+    const rawUpdated = sessions.map((s) => {
       if (s.id === updatedSession.id) {
         targetSession = {
           ...s,
@@ -163,7 +168,9 @@ export function useSessions() {
       return s;
     });
 
-    setSessions(updated);
+    // Re-sort in case the date was changed during the edit
+    const sorted = sortSessionsByDate(rawUpdated);
+    setSessions(sorted);
     if (targetSession) await saveSessionToDb(targetSession);
   };
 
@@ -180,9 +187,9 @@ export function useSessions() {
       attendees: []
     };
 
-    const updated = [newSession, ...sessions];
-    setSessions(updated);
-    setActiveSessionId(newSession.id);
+    const sorted = sortSessionsByDate([newSession, ...sessions]);
+    setSessions(sorted);
+    setActiveSessionId(newSession.id); // Instantly jump to the newly created session
     await saveSessionToDb(newSession);
   };
 
@@ -192,9 +199,10 @@ export function useSessions() {
 
       const updated = sessions.filter((s) => s.id !== sessionIdToDelete);
       if (updated.length > 0) {
-        setSessions(updated);
+        const sorted = sortSessionsByDate(updated);
+        setSessions(sorted);
         if (activeSessionId === sessionIdToDelete) {
-          setActiveSessionId(updated[0].id);
+          setActiveSessionId(sorted[0].id);
         }
       } else {
         const defaultWithUser = { ...DEFAULT_SESSION, userId: user.uid };
