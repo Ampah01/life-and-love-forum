@@ -1,121 +1,138 @@
 import React, { useState } from 'react';
-import { UserCheck } from 'lucide-react';
+import { UserPlus, User, Phone, MapPin, Calendar } from 'lucide-react';
 
-export default function RegistrationForm({ onCheckIn, allSessions = [] }) {
-  const [formData, setFormData] = useState({ name: '', phone: '', location: '' });
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+export default function RegistrationForm({ onCheckIn, allSessions }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [location, setLocation] = useState('');
+  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const getPastAttendees = () => {
-    const attendeeMap = new Map();
-    allSessions.forEach((session) => {
-      session.attendees?.forEach((att) => {
-        if (att.name && !attendeeMap.has(att.name.toLowerCase())) {
-          attendeeMap.set(att.name.toLowerCase(), att);
-        }
-      });
-    });
-    return Array.from(attendeeMap.values());
-  };
-
-  const handleNameChange = (e) => {
-    const value = e.target.value;
-    setFormData((prev) => ({ ...prev, name: value }));
-
-    if (value.trim().length > 1) {
-      const pastAttendees = getPastAttendees();
-      const matches = pastAttendees.filter((att) =>
-        att.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setSuggestions(matches);
-      setShowSuggestions(true);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleSelectSuggestion = (attendee) => {
-    setFormData({
-      name: attendee.name,
-      phone: attendee.phone || '',
-      location: attendee.location || ''
-    });
-    setSuggestions([]);
-    setShowSuggestions(false);
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone) return;
-    onCheckIn(formData);
-    setFormData({ name: '', phone: '', location: '' });
-    setSuggestions([]);
-    setShowSuggestions(false);
+    if (!name.trim() || !phone.trim()) {
+      alert('Please enter both name and phone number.');
+      return;
+    }
+
+    setLoading(true);
+    setSuccessMsg('');
+
+    const targetId = selectedSessionId || undefined;
+    const result = await onCheckIn({ name, phone, location }, targetId);
+
+    if (result && result.success === false) {
+      alert(result.message); // Displays the duplicate warning alert
+    } else {
+      setSuccessMsg('Successfully checked in!');
+      setName('');
+      setPhone('');
+      setLocation('');
+      setTimeout(() => setSuccessMsg(''), 3000);
+    }
+
+    setLoading(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-3 relative">
-      <p className="font-bold text-sm text-slate-700">Attendee Registration</p>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="relative">
-          <input
-            type="text"
-            required
-            placeholder="Name"
-            value={formData.name}
-            onChange={handleNameChange}
-            onFocus={() => formData.name.length > 1 && setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            className="w-full border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]"
-          />
-
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-40 overflow-y-auto divide-y divide-slate-100 text-xs">
-              {suggestions.map((item, index) => (
-                <li
-                  key={index}
-                  onClick={() => handleSelectSuggestion(item)}
-                  className="p-2.5 hover:bg-[#1B3B2B]/5 cursor-pointer flex justify-between items-center transition"
-                >
-                  <div>
-                    <p className="font-semibold text-slate-800">{item.name}</p>
-                    <p className="text-[10px] text-slate-400">{item.location || 'Asonkore'}</p>
-                  </div>
-                  <span className="text-slate-500 font-mono text-[11px] flex items-center gap-1">
-                    <UserCheck size={12} className="text-[#1B3B2B]" /> {item.phone}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="bg-[#1B3B2B]/10 p-2 rounded-xl text-[#1B3B2B]">
+            <UserPlus size={18} />
+          </div>
+          <h3 className="font-serif font-bold text-slate-800 text-sm sm:text-base">Quick Attendee Registration</h3>
         </div>
-
-        <input
-          type="tel"
-          required
-          placeholder="Phone Number"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="border border-slate-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]"
-        />
-
-        <input
-          type="text"
-          placeholder="Location"
-          value={formData.location}
-          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-          className="border border-slate-300 rounded-lg p-2 text-sm sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]"
-        />
+        {successMsg && (
+          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full animate-pulse">
+            {successMsg}
+          </span>
+        )}
       </div>
 
-      <button
-        type="submit"
-        className="bg-[#1B3B2B] hover:bg-[#142d21] text-white text-xs font-bold px-6 py-2 rounded-lg transition shadow-md"
-      >
-        Check-In
-      </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+            <User size={15} />
+          </span>
+          <input
+            type="text"
+            placeholder="Full Name *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]/30 focus:border-[#1B3B2B] transition text-slate-700 placeholder:text-slate-400"
+          />
+        </div>
+
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+            <Phone size={15} />
+          </span>
+          <input
+            type="tel"
+            placeholder="Phone Number *"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]/30 focus:border-[#1B3B2B] transition text-slate-700 placeholder:text-slate-400"
+          />
+        </div>
+
+        <div className="relative">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+            <MapPin size={15} />
+          </span>
+          <input
+            type="text"
+            placeholder="Location / Residence"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]/30 focus:border-[#1B3B2B] transition text-slate-700 placeholder:text-slate-400"
+          />
+        </div>
+
+        {allSessions && allSessions.length > 1 ? (
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+              <Calendar size={15} />
+            </span>
+            <select
+              value={selectedSessionId}
+              onChange={(e) => setSelectedSessionId(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B3B2B]/30 focus:border-[#1B3B2B] transition text-slate-700 cursor-pointer"
+            >
+              <option value="">Active Session (Default)</option>
+              {allSessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title} ({s.date})
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#1B3B2B] hover:bg-[#142d21] text-white text-xs sm:text-sm font-semibold py-2 px-4 rounded-xl transition shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <UserPlus size={16} /> Register Attendee
+          </button>
+        )}
+      </div>
+
+      {allSessions && allSessions.length > 1 && (
+        <div className="flex justify-end pt-1">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-[#1B3B2B] hover:bg-[#142d21] text-white text-xs sm:text-sm font-semibold py-2 px-6 rounded-xl transition shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-2"
+          >
+            <UserPlus size={16} /> Register Attendee
+          </button>
+        </div>
+      )}
     </form>
   );
 }

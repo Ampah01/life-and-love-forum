@@ -18,7 +18,8 @@ const DEFAULT_SESSION = {
   date: new Date().toISOString().split('T')[0],
   time: 'Every Tuesday, 6:30 PM - 8:00 PM',
   venue: 'ICGC Worship Temple, Asonkore',
-  attendees: []
+  attendees: [],
+  notes: ''
 };
 
 // Helper to sort sessions by date descending (most recent first)
@@ -79,40 +80,53 @@ export function useSessions() {
     await setDoc(docRef, { ...sessionObj, userId: user.uid }, { merge: true });
   };
 
-  const handleCheckIn = async (formData) => {
+  // Strict check-in handler preventing duplicate names AND phone numbers per session
+  const handleCheckIn = async (formData, targetSessionId = activeSessionId) => {
     let targetSession = null;
-    let duplicateFound = false;
+    let errorReason = null;
 
     const updated = sessions.map((s) => {
-      if (s.id === activeSessionId) {
-        const existingAttendee = (s.attendees || []).find(
-          (a) => a.name && formData.name && a.name.trim().toLowerCase() === formData.name.trim().toLowerCase()
-        );
+      if (s.id === targetSessionId) {
+        const attendees = s.attendees || [];
 
-        if (existingAttendee) {
-          duplicateFound = true;
-          return s; 
+        const incomingName = (formData.name || '').trim().toLowerCase();
+        const incomingPhone = (formData.phone || '').trim();
+
+        // Check if name or phone already exists in this session
+        const isDuplicate = attendees.some((att) => {
+          const existingName = (att.name || '').trim().toLowerCase();
+          const existingPhone = (att.phone || '').trim();
+
+          const nameMatches = incomingName && existingName && incomingName === existingName;
+          const phoneMatches = incomingPhone && existingPhone && incomingPhone === existingPhone;
+
+          return nameMatches || phoneMatches;
+        });
+
+        if (isDuplicate) {
+          errorReason = 'An attendee with this exact name or phone number is already registered in this session!';
+          return s;
         }
 
         const newAttendee = {
           id: Date.now().toString(),
-          name: formData.name,
-          phone: formData.phone,
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
           location: formData.location || 'Asonkore',
           attended: false,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
 
-        targetSession = { ...s, attendees: [newAttendee, ...(s.attendees || [])] };
+        targetSession = { ...s, attendees: [newAttendee, ...attendees] };
         return targetSession;
       }
       return s;
     });
 
-    if (duplicateFound) {
+    if (errorReason) {
       return { 
         success: false, 
-        message: 'An attendee with this name is already registered in this session!' 
+        message: errorReason 
       };
     }
 
@@ -174,6 +188,21 @@ export function useSessions() {
     if (targetSession) await saveSessionToDb(targetSession);
   };
 
+  // Handler to update meeting minutes / session notes
+  const handleUpdateNotes = async (newNotes) => {
+    let targetSession = null;
+    const updated = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        targetSession = { ...s, notes: newNotes };
+        return targetSession;
+      }
+      return s;
+    });
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
+  };
+
   const handleCreateSession = async (sessionData) => {
     const isObject = typeof sessionData === 'object' && sessionData !== null;
 
@@ -184,7 +213,8 @@ export function useSessions() {
       date: (isObject ? sessionData.date : null) || new Date().toISOString().split('T')[0],
       time: (isObject ? sessionData.time : null) || 'Every Tuesday, 6:30 PM - 8:00 PM',
       venue: (isObject ? sessionData.venue : null) || 'ICGC Worship Temple, Asonkore',
-      attendees: []
+      attendees: [],
+      notes: ''
     };
 
     const sorted = sortSessionsByDate([newSession, ...sessions]);
@@ -249,6 +279,7 @@ export function useSessions() {
     handleEditAttendee,
     handleDeleteAttendee,
     handleUpdateSession,
+    handleUpdateNotes,
     handleCreateSession,
     handleDeleteSession,
     handleClearAllSessions,

@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
 import { useSessions } from './hooks/useSessions';
 import Header from './components/Header';
-import RegistrationForm from './components/RegistrationForm';
-import AttendanceTable from './components/AttendanceTable';
-import RecentFormsPanel from './components/RecentFormsPanel';
-import FrequentAttendees from './components/FrequentAttendees';
-import StatsCards from './components/StatsCards';
-import SearchBar from './components/SearchBar';
-import ExportButton from './components/ExportButton';
 import AuthModal from './components/AuthModal';
 import UserNavBar from './components/UserNavBar';
 import LoadingScreen from './components/LoadingScreen';
 import Footer from './components/Footer';
-import QRCodeModal from './components/QRCodeModal';
-import CreateSessionModal from './components/CreateSessionModal';
 import PublicBookingRoute from './components/PublicBookingRoute';
-import { QrCode } from 'lucide-react';
+import MainContent from './components/MainContent';
+import SidebarContent from './components/SidebarContent';
+import AppModals from './components/AppModals';
 
 export default function App() {
   const {
@@ -27,8 +20,8 @@ export default function App() {
     setActiveSessionId,
     handleCheckIn,
     handleEditAttendee,
-    handleDeleteAttendee,
     handleUpdateSession,
+    handleUpdateNotes,
     handleCreateSession,
     handleDeleteSession,
     handleClearAllSessions,
@@ -57,7 +50,6 @@ export default function App() {
   const handleToggleAttendance = async (attendeeIdOrIndex, currentStatus) => {
     if (!currentActiveSession || !currentActiveSession.attendees) return;
 
-    // Find target attendee by ID or fallback to index matching
     const targetAttendee = currentActiveSession.attendees.find(
       (att, idx) => att.id === attendeeIdOrIndex || idx.toString() === attendeeIdOrIndex.toString()
     );
@@ -141,72 +133,38 @@ export default function App() {
         />
 
         <main className="max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
-          <div className="md:col-span-8 flex flex-col space-y-5 md:space-y-6 order-1 md:order-1 transition-all">
-            <StatsCards attendees={displaySession?.attendees || []} />
+          <MainContent
+            displaySession={displaySession}
+            sessions={sessions}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            filteredAttendees={filteredAttendees}
+            handleCheckIn={handleCheckIn}
+            handleUpdateNotes={handleUpdateNotes}
+            handleToggleAttendance={handleToggleAttendance}
+            setIsQrModalOpen={setIsQrModalOpen}
+          />
 
-            <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 transition-all duration-300 hover:shadow-md">
-              <RegistrationForm onCheckIn={handleCheckIn} allSessions={sessions} />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-                <div className="w-full sm:w-auto flex-1">
-                  <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsQrModalOpen(true)}
-                    className="flex items-center gap-1.5 bg-[#1B3B2B] hover:bg-[#142d21] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
-                  >
-                    <QrCode size={14} /> QR Code
-                  </button>
-
-                  <ExportButton
-                    attendees={displaySession?.attendees || []}
-                    sessionTitle={displaySession?.title}
-                    theme={displaySession?.theme}
-                    date={displaySession?.date}
-                  />
-                </div>
-              </div>
-
-              <div className="overflow-x-auto bg-white rounded-2xl shadow-sm border border-slate-200 transition-all duration-300 hover:shadow-md">
-                <AttendanceTable
-                  attendees={filteredAttendees}
-                  onToggleAttendance={handleToggleAttendance}
-                />
-              </div>
-            </div>
-          </div>
-
-          <aside className="md:col-span-4 flex flex-col space-y-5 md:space-y-6 order-2 md:order-2">
-            <RecentFormsPanel
-              sessions={filteredSessions}
-              activeSessionId={displaySession?.id}
-              setActiveSessionId={setActiveSessionId}
-              onCreateSession={handleCreateSession}
-              onUpdateSession={handleUpdateSession}
-              onDeleteSession={handleDeleteSession}
-              onClearAll={handleClearAllSessions}
-            />
-
-            <FrequentAttendees sessions={sessions} />
-          </aside>
+          <SidebarContent
+            filteredSessions={filteredSessions}
+            displaySession={displaySession}
+            setActiveSessionId={setActiveSessionId}
+            handleCreateSession={handleCreateSession}
+            handleUpdateSession={handleUpdateSession}
+            handleDeleteSession={handleDeleteSession}
+            handleClearAllSessions={handleClearAllSessions}
+            sessions={sessions}
+          />
         </main>
       </div>
 
-      <QRCodeModal
-        isOpen={isQrModalOpen}
-        onClose={() => setIsQrModalOpen(false)}
-        session={displaySession}
-      />
-
-      <CreateSessionModal
-        isOpen={isNewSessionModalOpen}
-        onClose={() => setIsNewSessionModalOpen(false)}
-        onCreateSession={handleCreateSession}
+      <AppModals
+        isQrModalOpen={isQrModalOpen}
+        setIsQrModalOpen={setIsQrModalOpen}
+        isNewSessionModalOpen={isNewSessionModalOpen}
+        setIsNewSessionModalOpen={setIsNewSessionModalOpen}
+        displaySession={displaySession}
+        handleCreateSession={handleCreateSession}
       />
 
       <Footer />
