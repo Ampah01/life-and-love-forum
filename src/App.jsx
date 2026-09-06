@@ -50,7 +50,8 @@ export default function App() {
 
   const query = searchQuery.toLowerCase().trim();
 
-  const currentActiveSession = sessions.find((s) => s.id === activeSessionId) || activeSession;
+  // Ensure active session defaults to the top sorted session if none is selected
+  const currentActiveSession = sessions.find((s) => s.id === activeSessionId) || sessions[0] || activeSession;
 
   // Robust toggle handler supporting ID or array index mapping
   const handleToggleAttendance = async (attendeeIdOrIndex, currentStatus) => {
@@ -72,7 +73,7 @@ export default function App() {
     };
 
     if (typeof handleEditAttendee === 'function') {
-      await handleEditAttendee(updatedAttendee); // Fixed signature to match useSessions hook
+      await handleEditAttendee(updatedAttendee);
     }
   };
 
