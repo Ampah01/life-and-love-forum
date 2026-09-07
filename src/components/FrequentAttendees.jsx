@@ -12,18 +12,16 @@ export default function FrequentAttendees({ sessions = [] }) {
       const processedInThisSession = new Set();
 
       (session.attendees || []).forEach((attendee) => {
-        // Normalize name: lowercase, trim extra spaces for strict matching
         const cleanName = (attendee.name || '').trim().toLowerCase();
 
         if (!cleanName || cleanName === '') return;
 
-        // Ensure each unique name is only counted once per session
         if (processedInThisSession.has(cleanName)) return;
         processedInThisSession.add(cleanName);
 
         if (!countsMap[cleanName]) {
           countsMap[cleanName] = {
-            name: attendee.name.trim(), // Preserve original display casing
+            name: attendee.name.trim(), 
             phone: attendee.phone || 'N/A',
             count: 0,
             earliestTimestamp: attendee.timestamp || '23:59'
