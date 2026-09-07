@@ -73,6 +73,38 @@ export function useSessions() {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
 
+  // Helper to compute New Members for the active session (people whose phone/name has never appeared in past sessions)
+  const getNewMembersForSession = (session, allSessions) => {
+    if (!session || !allSessions) return [];
+    
+    const currentSessionDate = new Date(session.date || 0);
+    // Gather all previous sessions (sessions with earlier dates or created earlier)
+    const previousSessions = allSessions.filter(s => s.id !== session.id && new Date(s.date || 0) <= currentSessionDate);
+    
+    const pastPhones = new Set();
+    const pastNames = new Set();
+    
+    previousSessions.forEach(s => {
+      (s.attendees || []).forEach(att => {
+        if (att.phone) pastPhones.add(att.phone.trim());
+        if (att.name) pastNames.add(att.name.trim().toLowerCase());
+      });
+    });
+    
+    // Filter active session attendees to only those NOT found in any past sessions
+    return (session.attendees || []).filter(att => {
+      const phone = att.phone ? att.phone.trim() : '';
+      const name = att.name ? att.name.trim().toLowerCase() : '';
+      
+      const isInPastPhones = phone && pastPhones.has(phone);
+      const isInPastNames = name && pastNames.has(name);
+      
+      return !isInPastPhones && !isInPastNames;
+    });
+  };
+
+  const newMembers = getNewMembersForSession(activeSession, sessions);
+
   // Helper to save a single session document in Firestore
   const saveSessionToDb = async (sessionObj) => {
     if (!user) return;
@@ -159,6 +191,23 @@ export function useSessions() {
     const updated = sessions.map((s) => {
       if (s.id === activeSessionId) {
         targetSession = { ...s, attendees: (s.attendees || []).filter((a) => a.id !== attendeeId) };
+        return targetSession;
+      }
+      return s;
+    });
+
+    setSessions(updated);
+    if (targetSession) await saveSessionToDb(targetSession);
+  };
+
+  // Handler to remove all unconfirmed (absent) attendees from the active session
+  const handleDeleteAbsentees = async () => {
+    let targetSession = null;
+    const updated = sessions.map((s) => {
+      if (s.id === activeSessionId) {
+        // Keep only confirmed attendees (attended === true)
+        const confirmedOnly = (s.attendees || []).filter((a) => a.attended === true);
+        targetSession = { ...s, attendees: confirmedOnly };
         return targetSession;
       }
       return s;
@@ -275,9 +324,11 @@ export function useSessions() {
     activeSession,
     activeSessionId,
     setActiveSessionId,
+    newMembers,
     handleCheckIn,
     handleEditAttendee,
     handleDeleteAttendee,
+    handleDeleteAbsentees,
     handleUpdateSession,
     handleUpdateNotes,
     handleCreateSession,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, Edit3, Check, X, Plus, Clock } from 'lucide-react';
+import { Calendar, MapPin, Edit3, Check, X, Plus, Clock, Timer } from 'lucide-react';
 
 export default function Header({ session, onUpdateSession, onNewSession }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -11,6 +11,8 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
     venue: '',
     bookingDeadline: ''
   });
+
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
 
   useEffect(() => {
     if (session) {
@@ -24,6 +26,34 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
       });
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!session?.bookingDeadline) return;
+
+    const deadlineTime = new Date(session.bookingDeadline).getTime();
+
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const difference = deadlineTime - now;
+
+      if (difference <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        return;
+      }
+
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds, isExpired: false });
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [session?.bookingDeadline]);
 
   const handleSave = () => {
     onUpdateSession({
@@ -39,7 +69,7 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
   };
 
   return (
-    <header className="bg-[#1B3B2B] text-white p-4 md:p-6 border-b-4 border-[#B89748] shadow-md">
+    <header className="bg-[#1B3B2B] text-white p-4 md:p-6 border-b-4 border-[#B89748] shadow-md w-full">
       <div className="max-w-7xl mx-auto flex flex-col gap-4">
         
         {/* Top Control Bar: Mobile New Session & Status */}
@@ -51,7 +81,7 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
           {onNewSession && (
             <button
               onClick={onNewSession}
-              className="bg-[#B89748] hover:bg-[#a2823f] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1 shrink-0"
+              className="bg-[#B89748] hover:bg-[#a2823f] text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow transition flex items-center space-x-1 shrink-0 cursor-pointer"
             >
               <Plus size={14} />
               <span>New Session</span>
@@ -66,7 +96,7 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
           <div className="bg-[#F7F5EC] text-slate-900 rounded-xl p-4 shadow-md relative">
             <button 
               onClick={() => setIsEditing(!isEditing)}
-              className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-[#1B3B2B] bg-slate-200 hover:bg-slate-300 rounded-lg transition"
+              className="absolute top-2 right-2 p-1.5 text-slate-500 hover:text-[#1B3B2B] bg-slate-200 hover:bg-slate-300 rounded-lg transition cursor-pointer"
               title="Edit Session Metadata"
             >
               {isEditing ? <X size={16} /> : <Edit3 size={16} />}
@@ -102,7 +132,7 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
 
                 <button
                   onClick={handleSave}
-                  className="bg-[#1B3B2B] text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-semibold mt-2 hover:bg-[#142d21] transition"
+                  className="bg-[#1B3B2B] text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 font-semibold mt-2 hover:bg-[#142d21] transition cursor-pointer"
                 >
                   <Check size={14} /> Save Details
                 </button>
@@ -118,10 +148,30 @@ export default function Header({ session, onUpdateSession, onNewSession }) {
                 <p className="text-xs text-slate-600 italic">
                   Real conversations on life, love & lasting family.
                 </p>
+
+                {/* Deadline & Live Countdown Badge */}
                 {session?.bookingDeadline && (
-                  <p className="text-[11px] text-amber-700 mt-2 flex items-center gap-1 font-medium">
-                    <Clock size={12} /> Deadline: {new Date(session.bookingDeadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                  </p>
+                  <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex flex-col gap-1">
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
+                      <Clock size={12} /> Deadline: {new Date(session.bookingDeadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                    </p>
+                    
+                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold w-fit shadow-xs ${
+                      timeLeft.isExpired 
+                        ? 'bg-rose-100 text-rose-700 border border-rose-200' 
+                        : 'bg-amber-100 text-amber-900 border border-amber-200'
+                    }`}>
+                      <Timer size={13} className="shrink-0 animate-pulse" />
+                      {timeLeft.isExpired ? (
+                        <span>Booking Closed</span>
+                      ) : (
+                        <span>
+                          {timeLeft.days > 0 && `${timeLeft.days}d `}
+                          {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s remaining
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

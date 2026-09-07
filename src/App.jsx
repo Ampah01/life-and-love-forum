@@ -18,6 +18,7 @@ export default function App() {
     activeSession,
     activeSessionId,
     setActiveSessionId,
+    newMembers,
     handleCheckIn,
     handleEditAttendee,
     handleUpdateSession,
@@ -25,7 +26,8 @@ export default function App() {
     handleCreateSession,
     handleDeleteSession,
     handleClearAllSessions,
-    handleSignOut
+    handleSignOut,
+    handleDeleteAbsentees 
   } = useSessions();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,16 +136,18 @@ export default function App() {
 
         <main className="max-w-7xl w-full mx-auto p-3 sm:p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
           <MainContent
-            displaySession={displaySession}
-            sessions={sessions}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filteredAttendees={filteredAttendees}
-            handleCheckIn={handleCheckIn}
-            handleUpdateNotes={handleUpdateNotes}
-            handleToggleAttendance={handleToggleAttendance}
-            setIsQrModalOpen={setIsQrModalOpen}
-          />
+  displaySession={displaySession}
+  sessions={sessions}
+  newMembers={newMembers}
+  searchQuery={searchQuery}
+  setSearchQuery={setSearchQuery}
+  filteredAttendees={filteredAttendees}
+  handleCheckIn={handleCheckIn}
+  handleUpdateNotes={handleUpdateNotes}
+  handleToggleAttendance={handleToggleAttendance}
+  handleDeleteAbsentees={handleDeleteAbsentees} 
+  setIsQrModalOpen={setIsQrModalOpen}
+/>
 
           <SidebarContent
             filteredSessions={filteredSessions}
